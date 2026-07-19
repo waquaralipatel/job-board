@@ -13,7 +13,14 @@ import {
 } from "../../services/job.service";
 import type { Job } from "../../types/job";
 
-type JobPayload = Omit<Job, "id" | "createdAt" | "updatedAt">;
+type JobPayload = Omit<
+  Job,
+  "id" | "createdAt" | "updatedAt"
+>;
+
+type FormErrors = Partial<
+  Record<keyof JobPayload, string>
+>;
 
 export default function Jobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -22,7 +29,11 @@ export default function Jobs() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [editingJob, setEditingJob] =
+    useState<Job | null>(null);
+
+  const [formErrors, setFormErrors] =
+    useState<FormErrors>({});
 
   const loadJobs = async () => {
     try {
@@ -44,38 +55,138 @@ export default function Jobs() {
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
       const matchesSearch =
-        job.title.toLowerCase().includes(search.toLowerCase()) ||
-        job.location.toLowerCase().includes(search.toLowerCase());
+        job.title
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+        job.location
+          .toLowerCase()
+          .includes(search.toLowerCase());
 
       const matchesCategory =
         !category || job.category === category;
 
-      return matchesSearch && matchesCategory;
+      return (
+        matchesSearch && matchesCategory
+      );
     });
   }, [jobs, search, category]);
 
-  const handleCreate = async (values: JobPayload) => {
-    await createJob(values);
-    setShowForm(false);
-    await loadJobs();
+  const mapBackendErrors = (
+    messages: string[]
+  ): FormErrors => {
+    const errors: FormErrors = {};
+
+    messages.forEach((message) => {
+      const lower = message.toLowerCase();
+
+      if (lower.includes("title")) {
+        errors.title = message;
+      } else if (
+        lower.includes("description")
+      ) {
+        errors.description = message;
+      } else if (lower.includes("salary")) {
+        errors.salary = message;
+      } else if (
+        lower.includes("location")
+      ) {
+        errors.location = message;
+      } else if (
+        lower.includes("employment")
+      ) {
+        errors.employmentType = message;
+      } else if (
+        lower.includes("experience")
+      ) {
+        errors.experience = message;
+      } else if (
+        lower.includes("category")
+      ) {
+        errors.category = message;
+      } else if (
+        lower.includes("company")
+      ) {
+        errors.companyId = message;
+      }
+    });
+
+    return errors;
   };
 
-  const handleUpdate = async (values: JobPayload) => {
+  const handleCreate = async (
+    values: JobPayload
+  ) => {
+    try {
+      setFormErrors({});
+
+      await createJob(values);
+
+      setShowForm(false);
+
+      await loadJobs();
+    } catch (err: any) {
+      const backendErrors =
+        err.response?.data?.errors?.body;
+
+      if (Array.isArray(backendErrors)) {
+        setFormErrors(
+          mapBackendErrors(backendErrors)
+        );
+      } else {
+        setError(
+          err.response?.data?.message ??
+            "Failed to create job."
+        );
+      }
+    }
+  };
+
+  const handleUpdate = async (
+    values: JobPayload
+  ) => {
     if (!editingJob) return;
 
-    await updateJob(editingJob.id, values);
-    setEditingJob(null);
-    await loadJobs();
+    try {
+      setFormErrors({});
+
+      await updateJob(
+        editingJob.id,
+        values
+      );
+
+      setEditingJob(null);
+
+      await loadJobs();
+    } catch (err: any) {
+      const backendErrors =
+        err.response?.data?.errors?.body;
+
+      if (Array.isArray(backendErrors)) {
+        setFormErrors(
+          mapBackendErrors(backendErrors)
+        );
+      } else {
+        setError(
+          err.response?.data?.message ??
+            "Failed to update job."
+        );
+      }
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this job?")) return;
+  const handleDelete = async (
+    id: string
+  ) => {
+    if (!window.confirm("Delete this job?"))
+      return;
 
     await deleteJob(id);
+
     await loadJobs();
   };
 
   if (loading) return <Loading />;
+
   if (error) return <Error message={error} />;
 
   return (
@@ -88,6 +199,7 @@ export default function Jobs() {
         <Button
           onClick={() => {
             setEditingJob(null);
+            setFormErrors({});
             setShowForm((prev) => !prev);
           }}
         >
@@ -98,13 +210,28 @@ export default function Jobs() {
       {showForm && (
         <JobForm
           onSubmit={handleCreate}
+          errors={formErrors}
         />
       )}
 
       {editingJob && (
         <JobForm
-          defaultValues={editingJob}
+          defaultValues={{
+            title: editingJob.title,
+            description:
+              editingJob.description,
+            salary: editingJob.salary,
+            location: editingJob.location,
+            employmentType:
+              editingJob.employmentType,
+            experience:
+              editingJob.experience,
+            category: editingJob.category,
+            companyId:
+              editingJob.companyId,
+          }}
           onSubmit={handleUpdate}
+          errors={formErrors}
         />
       )}
 
@@ -120,6 +247,7 @@ export default function Jobs() {
         onEdit={(job) => {
           setShowForm(false);
           setEditingJob(job);
+          setFormErrors({});
         }}
         onDelete={handleDelete}
       />
