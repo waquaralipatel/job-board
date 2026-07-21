@@ -4,7 +4,7 @@ A full-stack Job Board application built with React, TypeScript, Express, Prisma
 
 ## 🚀 Live Demo
 
-**Frontend:** https://job-board-waquaralipatel.vercel.app
+**Frontend:** https://job-board-waqaralipatel.vercel.app/
 
 **Backend:** https://job-board-uq0e.onrender.com/health
 
