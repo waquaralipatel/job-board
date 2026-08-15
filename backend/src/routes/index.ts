@@ -4,6 +4,8 @@ import jobRoutes from "./job.routes";
 
 const router = Router();
 
+
+//routes
 router.use("/companies", companyRoutes);
 router.use("/jobs", jobRoutes);
 
